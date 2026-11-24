@@ -14,6 +14,8 @@ stuck    GATE 2 (you)       needs-human-feedback: waits for `/factory <your feed
 
 It runs inside your own Claude Code session (`/factory run`); no CI, no server. `/factory dashboard` serves a live status page.
 
+**[How it works](docs/how-it-works.md)**: the whole factory as a diagram, then one feature followed step by step from the issue to the merged PR.
+
 ## Install
 
 ### For an agent
