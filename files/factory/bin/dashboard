@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""Live, read-only dashboard for the factory.
+
+Usage: dashboard [--port N]      (default: dashboard_port in factory/config.json)
+
+Serves factory/dashboard/index.html on http://localhost:<port> (127.0.0.1 only) and:
+  GET /api/state              every job (job.json + its files), the `factory` issue queue (each
+                              issue with `blocked_by`: its open blockers), config
+  GET /api/file?job=&path=    one file from a job folder, as text
+  GET /api/events             server-sent events: `change` whenever a job file or the queue changes
+It never writes anything.
+"""
+
+import json
+import os
+import subprocess
+import sys
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+REPO = Path(__file__).resolve().parents[2]
+FACTORY = REPO / "factory"
+JOBS = FACTORY / "jobs"
+PAGE = FACTORY / "dashboard" / "index.html"
+QUEUE_EVERY = 30
+
+_queue = {"issues": [], "error": None, "at": 0.0, "version": 0}
+_lock = threading.Lock()
+
+
+def config():
+    return json.loads((FACTORY / "config.json").read_text())
+
+
+def open_blockers(number):
+    """Open issues that block #number (GitHub's native "blocked by"), as `job queue` sees them."""
+    out = subprocess.run(
+        ["gh", "api", "repos/{owner}/{repo}/issues/%d/dependencies/blocked_by" % number,
+         "--jq", "[.[] | select(.state == \"open\") | .number]"],
+        cwd=str(REPO), capture_output=True, text=True, timeout=30)
+    if out.returncode != 0:
+        raise RuntimeError(out.stderr.strip() or "gh failed")
+    return sorted(json.loads(out.stdout or "[]"))
+
+
+def refresh_queue():
+    while True:
+        try:
+            label = config()["labels"]["queue"]
+            out = subprocess.run(
+                ["gh", "issue", "list", "--label", label, "--state", "open", "--limit", "100",
+                 "--json", "number,title,url,labels,createdAt"],
+                cwd=str(REPO), capture_output=True, text=True, timeout=30)
+            if out.returncode != 0:
+                raise RuntimeError(out.stderr.strip() or "gh failed")
+            issues = sorted(json.loads(out.stdout or "[]"), key=lambda i: i["number"])
+            for issue in issues:
+                issue["blocked_by"] = open_blockers(issue["number"])
+            with _lock:
+                if issues != _queue["issues"] or _queue["error"]:
+                    _queue["version"] += 1
+                _queue.update(issues=issues, error=None, at=time.time())
+        except Exception as e:  # keep serving; show the error on the page
+            with _lock:
+                if _queue["error"] != str(e):
+                    _queue["version"] += 1
+                _queue.update(error=str(e), at=time.time())
+        time.sleep(QUEUE_EVERY)
+
+
+def job_files(d):
+    files = []
+    for p in sorted(d.rglob("*")):
+        if p.is_file() and p.suffix in (".md", ".log", ".json") and not p.name.endswith(".tmp"):
+            files.append({"path": str(p.relative_to(d)), "mtime": p.stat().st_mtime, "size": p.stat().st_size})
+    return files
+
+
+def state():
+    jobs = []
+    if JOBS.exists():
+        for d in sorted(JOBS.iterdir()):
+            jf = d / "job.json"
+            if not jf.exists():
+                continue
+            try:
+                job = json.loads(jf.read_text())
+            except ValueError:
+                continue  # mid-write; the next event brings it
+            job["files"] = job_files(d)
+            jobs.append(job)
+    cfg = config()
+    with _lock:
+        queue = dict(_queue)
+    return {
+        "now": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "jobs": jobs,
+        "queue": queue["issues"],
+        "queue_error": queue["error"],
+        "config": {k: cfg.get(k) for k in ("concurrency", "max_rounds", "auto_merge_max_risk",
+                                           "checks_configured", "labels")},
+    }
+
+
+def fingerprint():
+    latest, count = 0.0, 0
+    if JOBS.exists():
+        for root, _dirs, names in os.walk(JOBS):
+            for n in names:
+                try:
+                    latest = max(latest, os.stat(os.path.join(root, n)).st_mtime)
+                    count += 1
+                except OSError:
+                    pass
+    with _lock:
+        return (latest, count, _queue["version"])
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *_args):
+        pass
+
+    def send(self, code, body, ctype):
+        data = body.encode("utf-8") if isinstance(body, str) else body
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        url = urlparse(self.path)
+        if url.path in ("/", "/index.html"):
+            return self.send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
+        if url.path == "/api/state":
+            return self.send(200, json.dumps(state(), ensure_ascii=False), "application/json; charset=utf-8")
+        if url.path == "/api/file":
+            q = parse_qs(url.query)
+            job, rel = q.get("job", [""])[0], q.get("path", [""])[0]
+            base = (JOBS / job).resolve()
+            target = (base / rel).resolve()
+            if not job or base.parent != JOBS.resolve() or base not in target.parents or not target.is_file():
+                return self.send(404, "not found", "text/plain; charset=utf-8")
+            return self.send(200, target.read_text(errors="replace"), "text/plain; charset=utf-8")
+        if url.path == "/api/events":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            last = None
+            try:
+                while True:
+                    fp = fingerprint()
+                    msg = "event: change\ndata: 1\n\n" if fp != last else ": ping\n\n"
+                    last = fp
+                    self.wfile.write(msg.encode())
+                    self.wfile.flush()
+                    time.sleep(1)
+            except (BrokenPipeError, ConnectionResetError):
+                return
+        return self.send(404, "not found", "text/plain; charset=utf-8")
+
+
+def main(argv):
+    port = config().get("dashboard_port", 8765)
+    if "--port" in argv:
+        port = int(argv[argv.index("--port") + 1])
+    threading.Thread(target=refresh_queue, daemon=True).start()
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server.daemon_threads = True
+    print("factory dashboard: http://localhost:%d" % port, flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

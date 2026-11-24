@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factory board</title>
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --line: #e4e2da; --line-strong: #cfccc1;
+  --text: #22211e; --muted: #6b6960; --faint: #9a978c;
+  --accent: #534ab7; --accent-bg: #eeedfe;
+  --you: #a83d1c; --you-bg: #fbebe4; --you-line: #f0b9a3;
+  --ok: #2f6b16; --ok-bg: #e8f2dc; --warn: #8a5208; --warn-bg: #faeeda; --bad: #a32d2d; --bad-bg: #fcebeb;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1a18; --panel: #242320; --line: #34322e; --line-strong: #46443e;
+    --text: #ecebe6; --muted: #a8a59b; --faint: #77746b;
+    --accent: #aca5f0; --accent-bg: #2c2a4a;
+    --you: #f3a487; --you-bg: #3d2219; --you-line: #6e3a26;
+    --ok: #a7d77f; --ok-bg: #22301a; --warn: #f2c27a; --warn-bg: #3a2c14; --bad: #f19c9c; --bad-bg: #3d1f1f;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--panel); }
+h1 { font-size: 18px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+.live { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.live.on .dot { background: #3aa45f; box-shadow: 0 0 0 3px color-mix(in srgb, #3aa45f 25%, transparent); }
+.stats { display: flex; gap: 16px; margin-left: auto; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+.stats b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+main { padding: 20px 24px 40px; max-width: 1600px; margin: 0 auto; }
+.notice { margin: 0 0 16px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--muted); font-size: 13px; }
+.notice.warn { border-color: var(--warn-bg); background: var(--warn-bg); color: var(--warn); }
+.board { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.col { background: color-mix(in srgb, var(--panel) 55%, var(--bg)); border: 1px solid var(--line); border-radius: 10px; padding: 10px; min-height: 120px; }
+.col.you { border-color: var(--you-line); background: color-mix(in srgb, var(--you-bg) 55%, var(--bg)); }
+.col h2 { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 2px 4px 10px; }
+.col.you h2 { color: var(--you); }
+.col h2 span { font-variant-numeric: tabular-nums; font-weight: 500; }
+.empty { color: var(--faint); font-size: 12px; padding: 6px 4px; }
+.card { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 11px; margin-bottom: 8px; cursor: pointer; }
+.card:hover { border-color: var(--line-strong); }
+.card.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.card .num { color: var(--faint); font-variant-numeric: tabular-nums; font-size: 12px; }
+.card .title { font-weight: 500; margin: 2px 0 6px; overflow-wrap: anywhere; }
+.card .note { color: var(--muted); font-size: 12px; margin-top: 6px; overflow-wrap: anywhere; }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--bg); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+.tag.low { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.tag.medium { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.tag.high { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+.tag.you { background: var(--you-bg); color: var(--you); border-color: var(--you-line); }
+.tag.run { background: var(--accent-bg); color: var(--accent); border-color: transparent; }
+.tag.blocked { white-space: normal; }
+.card.blocked { background: transparent; border-style: dashed; }
+.card.blocked .title { color: var(--muted); }
+a { color: var(--accent); }
+.detail { margin-top: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.detail h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+.detail .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 14px; }
+.detail .risk-why { margin-bottom: 14px; font-size: 13px; }
+.detail .risk-why pre { margin-top: 6px; max-height: 200px; }
+.cols2 { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 20px; }
+.timeline { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+.timeline li { position: relative; padding: 0 0 12px 14px; font-size: 13px; }
+.timeline li::before { content: ""; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line-strong); }
+.timeline li:last-child::before { border-color: var(--accent); background: var(--accent); }
+.timeline .when { color: var(--faint); font-size: 12px; }
+.files { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.files button { font: 12px var(--mono); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); cursor: pointer; }
+.files button.sel { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+pre { margin: 0; padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font: 12.5px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 560px; overflow: auto; }
+.muted { color: var(--muted); }
+@media (max-width: 1200px) { .board { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  header, main { padding-left: 16px; padding-right: 16px; }
+  .board { grid-template-columns: minmax(0, 1fr); }
+  .cols2 { grid-template-columns: minmax(0, 1fr); }
+  .stats { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Factory</h1>
+  <span class="live" id="live"><span class="dot"></span><span id="live-text">connecting…</span></span>
+  <div class="stats" id="stats"></div>
+</header>
+<main>
+  <div id="notices"></div>
+  <div class="board" id="board"></div>
+  <section class="detail" id="detail" hidden></section>
+</main>
+<script>
+const COLS = [
+  { key: "blocked", title: "Blocked" },
+  { key: "queue",  title: "Queued" },
+  { key: "spec",   title: "Spec" },
+  { key: "build",  title: "Build" },
+  { key: "gate",   title: "Checks" },
+  { key: "review", title: "Review" },
+  { key: "you",    title: "Needs you", you: true },
+  { key: "done",   title: "Done" },
+];
+const COLUMN_OF = { spec: "spec", clarify: "you", build: "build", gate: "gate", review: "review", merging: "review",
+  "needs-human-feedback": "you", "awaiting-merge": "you", merged: "done", rejected: "done" };
+const YOU_LABEL = { clarify: "answer questions", "needs-human-feedback": "needs feedback", "awaiting-merge": "merge the PR" };
+const RUNNING = { spec: "planner", build: "builder", gate: "checks", review: "reviewer", merging: "merging" };
+let data = null, selected = null, selectedFile = null;
+
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v; else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined && v !== false) n.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k !== null && k !== undefined && k !== false) n.append(k.nodeType ? k : String(k));
+  return n;
+};
+const ago = iso => {
+  if (!iso) return "";
+  const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+  if (s < 60) return Math.floor(s) + "s";
+  if (s < 3600) return Math.floor(s / 60) + "m";
+  if (s < 86400) return Math.floor(s / 3600) + "h " + Math.floor(s % 3600 / 60) + "m";
+  return Math.floor(s / 86400) + "d";
+};
+const lastMove = j => (j.history && j.history.length ? j.history[j.history.length - 1].at : j.started);
+
+function card(job) {
+  const col = COLUMN_OF[job.stage] || "spec";
+  const tags = [];
+  if (job.risk) tags.push(el("span", { class: "tag " + job.risk, title: job.risk_why || "" }, job.risk + " risk"));
+  if (YOU_LABEL[job.stage]) tags.push(el("span", { class: "tag you" }, YOU_LABEL[job.stage]));
+  if (RUNNING[job.stage]) tags.push(el("span", { class: "tag run" }, RUNNING[job.stage]));
+  if (col !== "done" && job.round) tags.push(el("span", { class: "tag" }, "round " + job.round + "/" + job.round_limit));
+  if (job.stage === "merged" || job.stage === "rejected") tags.push(el("span", { class: "tag" }, job.stage));
+  tags.push(el("span", { class: "tag", title: "time in this stage" }, ago(lastMove(job))));
+  return el("button", { class: "card" + (selected === job.id ? " sel" : ""), onclick: () => select(job.id) },
+    el("div", { class: "num" }, "#" + job.issue + (job.pr ? " · PR #" + job.pr : "")),
+    el("div", { class: "title" }, job.title),
+    el("div", { class: "tags" }, tags),
+    job.note ? el("div", { class: "note" }, job.note) : null);
+}
+
+function queueCard(issue) {
+  const blockers = issue.blocked_by || [];
+  const tag = blockers.length
+    ? el("span", { class: "tag blocked", title: "starts once these issues close" },
+        "blocked by " + blockers.map(n => "#" + n).join(", "))
+    : el("span", { class: "tag" }, "waiting " + ago(issue.createdAt));
+  return el("a", { class: "card" + (blockers.length ? " blocked" : ""), href: issue.url, target: "_blank", rel: "noopener" },
+    el("div", { class: "num" }, "#" + issue.number),
+    el("div", { class: "title" }, issue.title),
+    el("div", { class: "tags" }, tag));
+}
+
+function render() {
+  if (!data) return;
+  const groups = Object.fromEntries(COLS.map(c => [c.key, []]));
+  const jobIssues = new Set(data.jobs.map(j => j.issue));
+  for (const issue of data.queue) if (!jobIssues.has(issue.number))
+    groups[(issue.blocked_by || []).length ? "blocked" : "queue"].push(queueCard(issue));
+  const jobs = [...data.jobs].sort((a, b) => (lastMove(b) || "").localeCompare(lastMove(a) || ""));
+  let doneShown = 0;
+  for (const j of jobs) {
+    const col = COLUMN_OF[j.stage] || "spec";
+    if (col === "done" && doneShown++ >= 12) continue;
+    groups[col].push(card(j));
+  }
+  const board = document.getElementById("board");
+  board.replaceChildren(...COLS.map(c => el("section", { class: "col" + (c.you ? " you" : "") },
+    el("h2", {}, c.title, el("span", {}, groups[c.key].length || "")),
+    groups[c.key].length ? groups[c.key] : el("div", { class: "empty" }, c.you ? "Nothing waits on you" : "—"))));
+
+  const active = data.jobs.filter(j => RUNNING[j.stage]).length;
+  const you = data.jobs.filter(j => YOU_LABEL[j.stage]).length;
+  const merged = data.jobs.filter(j => j.stage === "merged").length;
+  document.getElementById("stats").replaceChildren(
+    el("span", {}, el("b", {}, active), " running of ", el("b", {}, data.config.concurrency)),
+    el("span", {}, el("b", {}, you), " waiting on you"),
+    el("span", {}, el("b", {}, groups.queue.length), " queued"),
+    el("span", {}, el("b", {}, groups.blocked.length), " blocked"),
+    el("span", {}, el("b", {}, merged), " merged"));
+
+  const notices = [];
+  if (data.queue_error) notices.push(el("div", { class: "notice warn" }, "Couldn't read the GitHub queue: " + data.queue_error));
+  if (!data.config.checks_configured) notices.push(el("div", { class: "notice" },
+    "No project checks are configured yet (factory/checks.sh), so every PR waits for you to merge."));
+  document.getElementById("notices").replaceChildren(...notices);
+  renderDetail();
+}
+
+function select(id) {
+  selected = selected === id ? null : id;
+  selectedFile = null;
+  render();
+  if (selected) document.getElementById("detail").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function renderDetail() {
+  const box = document.getElementById("detail");
+  const job = data && data.jobs.find(j => j.id === selected);
+  if (!job) { box.hidden = true; return; }
+  box.hidden = false;
+  const files = job.files.map(f => f.path).filter(p => p !== "job.json");
+  const preferred = ["planning.md", "build.md"].concat(files.filter(p => /review\.md$|checks\.md$/.test(p)).reverse());
+  if (!selectedFile || !files.includes(selectedFile)) selectedFile = preferred.find(p => files.includes(p)) || files[0] || null;
+  const timeline = el("ul", { class: "timeline" }, (job.history || []).map(h =>
+    el("li", {}, el("div", {}, (h.from ? h.from + " → " : "") + h.to + (h.round > 1 ? " (round " + h.round + ")" : "")),
+      h.note ? el("div", { class: "muted" }, h.note) : null,
+      el("div", { class: "when" }, new Date(h.at).toLocaleString()))));
+  const pre = el("pre", {}, selectedFile ? "Loading…" : "No files yet.");
+  box.replaceChildren(
+    el("h3", {}, "#" + job.issue + " " + job.title),
+    el("div", { class: "meta" },
+      el("span", {}, "Stage: ", el("b", {}, job.stage)),
+      job.risk ? el("span", {}, "Risk: " + job.risk) : null,
+      el("span", {}, "Round " + job.round + " of " + job.round_limit),
+      el("a", { href: job.issue_url, target: "_blank", rel: "noopener" }, "Issue"),
+      job.pr_url ? el("a", { href: job.pr_url, target: "_blank", rel: "noopener" }, "PR #" + job.pr) : null,
+      el("span", { class: "muted" }, "Branch " + job.branch)),
+    job.risk_why ? el("div", { class: "risk-why" }, el("b", {}, "Why " + job.risk + " risk"),
+      el("pre", {}, job.risk_why)) : null,
+    el("div", { class: "cols2" },
+      el("div", {}, timeline),
+      el("div", {},
+        el("div", { class: "files" }, files.map(p => el("button", { class: p === selectedFile ? "sel" : "",
+          onclick: () => { selectedFile = p; renderDetail(); } }, p))),
+        pre)));
+  if (selectedFile) {
+    try {
+      const r = await fetch("/api/file?job=" + encodeURIComponent(job.id) + "&path=" + encodeURIComponent(selectedFile));
+      pre.textContent = r.ok ? await r.text() : "Couldn't load " + selectedFile;
+    } catch { pre.textContent = "Couldn't load " + selectedFile; }
+  }
+}
+
+async function load() {
+  try {
+    const r = await fetch("/api/state");
+    data = await r.json();
+    render();
+  } catch { setLive(false); }
+}
+
+function setLive(on) {
+  document.getElementById("live").classList.toggle("on", on);
+  document.getElementById("live-text").textContent = on ? "live" : "reconnecting…";
+}
+
+function connect() {
+  const es = new EventSource("/api/events");
+  es.addEventListener("change", load);
+  es.onopen = () => setLive(true);
+  es.onerror = () => setLive(false);
+}
+
+load();
+connect();
+setInterval(render, 15000);
+</script>
+</body>
+</html>

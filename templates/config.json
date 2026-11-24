@@ -1,0 +1,47 @@
+{
+  "base_branch": "main",
+  "concurrency": 3,
+  "max_rounds": 3,
+  "merge_method": "merge",
+  "labels": {
+    "queue": "factory",
+    "needs_feedback": "factory:needs-human-feedback",
+    "awaiting_merge": "factory:awaiting-merge"
+  },
+  "checks_configured": false,
+  "auto_merge_max_risk": "medium",
+  "steps": {
+    "planner_spec": {
+      "model": "opus",
+      "effort": "high"
+    },
+    "planner_revise": {
+      "model": "opus",
+      "effort": "medium"
+    },
+    "builder": {
+      "model": "sonnet",
+      "effort": "high"
+    },
+    "reviewer": {
+      "model": "opus",
+      "effort": "medium"
+    }
+  },
+  "dashboard_port": 8765,
+  "protected_paths": [
+    "factory/checks.sh",
+    "factory/config.json",
+    "factory/risk.md",
+    "factory/bin/*",
+    "factory/dashboard/*",
+    ".claude/settings.json",
+    ".claude/agents/*",
+    ".claude/skills/*",
+    ".agents/*"
+  ],
+  "context_files": [
+    "GLOSSARY.md",
+    "docs/adr/"
+  ]
+}
