@@ -9,6 +9,10 @@
   job answer <job>             clarify -> spec: your answers on stdin, saved and posted on the issue
   job finish <job>             review passed: merge (auto_merge on, risk <= auto_merge_max_risk,
                                checks configured) or hand the PR to you (awaiting-merge)
+  job sync <job>               update a waiting PR from the base branch: a clean merge is checked and
+                               pushed; on conflicts prints CONFLICT <files> and the report path
+  job sync <job> --done        the conflicts are resolved and committed: check, push, report on the PR
+  job sync <job> --abort       leave the PR as it was and hand the conflicts to you
   job feedback <job>           waiting job -> next round, your words on stdin as feedback-<k>.md
   job reject <job>             waiting job -> rejected, your reason on stdin
   job status [<job>...]        table of jobs
@@ -58,8 +62,9 @@ TRANSITIONS = {
     "gate": {"review", "build", "needs-human-feedback"},
     "review": {"build", "needs-human-feedback"},
     "merging": {"merged", "needs-human-feedback"},
-    "awaiting-merge": {"merged", "build", "rejected"},
-    "needs-human-feedback": {"spec", "build", "rejected"},
+    "syncing": {"awaiting-merge", "needs-human-feedback"},
+    "awaiting-merge": {"merged", "build", "rejected", "syncing"},
+    "needs-human-feedback": {"spec", "build", "rejected", "syncing"},
 }
 TERMINAL = {"merged", "rejected"}
 WAITING = {"clarify", "awaiting-merge", "needs-human-feedback"}
@@ -613,6 +618,93 @@ def cmd_finish(args):
     move(d, job, "merged", "merged PR #%s" % job["pr"])
 
 
+def git_ok(wt, *args):
+    return run(["git", *args], cwd=wt, check=False).returncode == 0
+
+
+def cmd_sync(args):
+    d = find_job(args[0])
+    job = load(d)
+    flag = args[1] if len(args) > 1 else ""
+    if flag in ("--done", "--abort"):
+        if job["stage"] != "syncing":
+            raise Refused("%s is in %s, not syncing" % (job["id"], job["stage"]))
+        if flag == "--abort":
+            return sync_stop(d, job, "the conflicts need your decision")
+        return sync_done(d, job)
+    if flag:
+        raise Refused("unknown flag %s (use --done or --abort)" % flag)
+    # Only a PR that passed review: a job stuck for another reason (blocked builder) needs feedback, not a sync.
+    merge_failed = job["stage"] == "needs-human-feedback" and job.get("note", "").startswith(("merge failed", "sync failed"))
+    if not job.get("pr") or not (job["stage"] == "awaiting-merge" or merge_failed):
+        raise Refused("%s is in %s; sync updates a PR that waits for your merge" % (job["id"], job["stage"]))
+    wt = job["worktree"]
+    if not tree_clean(job):
+        raise Refused("the worktree %s has uncommitted changes" % wt)
+    run(["git", "fetch", "origin", BASE], cwd=wt)
+    if git_ok(wt, "merge-base", "--is-ancestor", "origin/" + BASE, "HEAD"):
+        print("%s %s: already up to date with origin/%s" % (job["id"], ref(job), BASE))
+        return
+    k = len(list(d.glob("sync-*.md"))) + 1
+    job["sync"] = {"from": run(["git", "rev-parse", "HEAD"], cwd=wt).stdout.strip(),
+                   "base": run(["git", "rev-parse", "origin/" + BASE], cwd=wt).stdout.strip(),
+                   "report": "sync-%d.md" % k, "files": []}
+    move(d, job, "syncing", "merging origin/%s" % BASE)
+    job = load(d)
+    if git_ok(wt, "merge", "--no-edit", "origin/" + BASE):
+        (d / job["sync"]["report"]).write_text(
+            "SYNC: CLEAN\n\n## Conflicts\nNone: git merged origin/%s on its own.\n" % BASE)
+        return sync_done(d, job)
+    files = run(["git", "diff", "--name-only", "--diff-filter=U"], cwd=wt).stdout.split()
+    if not files:
+        return sync_stop(d, job, "`git merge origin/%s` failed without a conflict" % BASE)
+    job["sync"]["files"] = files
+    save(d, job)
+    print("CONFLICT %s" % " ".join(files))
+    print("report: %s" % (d / job["sync"]["report"]))
+
+
+def sync_done(d, job):
+    wt, s = job["worktree"], job["sync"]
+    report = d / s["report"]
+    if header(report).get("SYNC") not in ("CLEAN", "RESOLVED"):
+        raise Refused("%s needs `SYNC: RESOLVED` on its first line (or use --abort)" % report)
+    if git_ok(wt, "rev-parse", "--quiet", "--verify", "MERGE_HEAD") or not tree_clean(job):
+        raise Refused("the merge is not committed, or the worktree has uncommitted changes")
+    parents = run(["git", "rev-parse", "HEAD^1", "HEAD^2"], cwd=wt, check=False).stdout.split()
+    if parents != [s["from"], s["base"]]:
+        raise Refused("HEAD must be one merge commit of origin/%s on top of the branch, nothing more" % BASE)
+    # A resolution may change only the conflicted files; anything else is new work and goes through a build round.
+    touched = run(["git", "show", "--remerge-diff", "--format=", "--name-only", "HEAD"], cwd=wt).stdout.split()
+    extra = sorted(set(touched) - set(s["files"]))
+    if extra:
+        return sync_stop(d, job, "the resolution changed files that had no conflict: %s" % ", ".join(extra))
+    gate = run([str(FACTORY / "bin" / "gate"), job["id"], "--merge"], check=False)
+    if gate.returncode != 0:
+        return sync_stop(d, job, "checks failed after the merge (round-%d/merge-checks.md)" % job["round"])
+    run(["git", "push", "origin", job["branch"]], cwd=wt)
+    sha = run(["git", "rev-parse", "--short=12", "HEAD"], cwd=wt).stdout.strip()
+    see = ("\n\nEvery line the resolution wrote, against git's own merge: `git show --remerge-diff %s`" % sha
+           if s["files"] else "")
+    comment_pr(job["pr"], "**Factory: synced with `%s`** (merge commit %s, checks passed)\n\n%s%s" % (
+        BASE, sha, body_after_header(report), see))
+    set_labels(job["issue"], add=[LABELS["awaiting_merge"]], remove=[LABELS["needs_feedback"]])
+    move(d, job, "awaiting-merge", "synced with %s%s" % (
+        BASE, ", %d conflicted file(s) resolved, see %s" % (len(s["files"]), s["report"]) if s["files"] else ""))
+
+
+def sync_stop(d, job, why):
+    """Put the branch back where it was (the PR never changed) and hand the job to the user."""
+    wt, s = job["worktree"], job["sync"]
+    run(["git", "merge", "--abort"], cwd=wt, check=False)
+    run(["git", "reset", "--hard", s["from"]], cwd=wt)
+    report = d / s["report"]
+    detail = body_after_header(report) if report.exists() else ""
+    needs_feedback(d, job, "The factory did not sync this PR with `%s`: %s. The branch is unchanged.%s" % (
+        BASE, why, ("\n\n" + detail) if detail else ""))
+    move(d, job, "needs-human-feedback", "sync failed: %s" % why)
+
+
 def cmd_feedback(args):
     d = find_job(args[0])
     job = load(d)
@@ -720,7 +812,7 @@ def cmd_concurrency(args):
 COMMANDS = {
     "queue": (cmd_queue, 0), "create": (cmd_create, 1), "advance": (cmd_advance, 2),
     "answer": (cmd_answer, 1), "finish": (cmd_finish, 1), "feedback": (cmd_feedback, 1),
-    "reject": (cmd_reject, 1), "status": (cmd_status, 0), "agent": (cmd_agent, 2),
+    "reject": (cmd_reject, 1), "sync": (cmd_sync, 1), "status": (cmd_status, 0), "agent": (cmd_agent, 2),
     "concurrency": (cmd_concurrency, 0),
 }
 

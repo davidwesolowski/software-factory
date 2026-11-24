@@ -28,6 +28,32 @@ Your prompt says what the round is for. Read it before changing anything:
 - review findings: `<job folder>/round-<N>/review.md` — fix every finding marked as required;
 - user feedback: `<job folder>/feedback-<k>.md` — it wins over the plan and the reviews where they disagree.
 
+## Sync
+
+When your prompt says `Sync with <base>`, you do not build. `factory/bin/job sync` has merged `origin/<base>` into the branch in the worktree and stopped on conflicts; the prompt lists the conflicted files and the report path. Resolve them and nothing else:
+
+1. For each conflict, find out what each side meant: `git log --oneline <merge-base>..origin/<base> -- <file>` and `git log <merge-base>..HEAD -- <file>` (`git merge-base HEAD MERGE_HEAD`), the plan, and the PRs or issues the main-side commits name.
+2. Keep both sides' intent. Change only conflicted files, and in them only what the conflict needs; anything more is refused. If the two sides want things that can't both hold (one removes what the other relies on, two different behaviours for the same case), or you would have to guess, don't resolve it: write `SYNC: UNRESOLVED` and say what the user must decide.
+3. Run `cd <worktree> && bash <main checkout>/factory/checks.sh`. If it fails because of your resolution, fix the resolution; if it fails for another reason, write UNRESOLVED and say so.
+4. Commit the merge (`git add <the conflicted files>`, then `git commit --no-edit`). One merge commit, no other commits, no push: the factory checks and pushes.
+5. Write the report (not build.md), in the user's language, the language of the plan:
+
+```
+SYNC: RESOLVED | UNRESOLVED
+
+## Conflicts
+### <path>, <where: function, component or line range>
+- Main: what the base branch changed here, and which commit or PR
+- This PR: what this branch changed here
+- Resolution: what the code does now
+- Why: why this keeps both intents, or why the one you chose wins
+
+## Check by hand
+What the user should look at or test because of the resolution, or `Nothing.`
+```
+
+Reply with one line: the `SYNC:` line.
+
 ## Write build.md
 
 Rewrite `<job folder>/build.md` at the end of every round, keeping the Log of earlier rounds:

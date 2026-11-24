@@ -105,10 +105,10 @@ const COLS = [
   { key: "you",    title: "Needs you", you: true },
   { key: "done",   title: "Done" },
 ];
-const COLUMN_OF = { spec: "spec", clarify: "you", build: "build", gate: "gate", review: "review", merging: "review",
+const COLUMN_OF = { spec: "spec", clarify: "you", build: "build", gate: "gate", review: "review", merging: "review", syncing: "review",
   "needs-human-feedback": "you", "awaiting-merge": "you", merged: "done", rejected: "done" };
 const YOU_LABEL = { clarify: "answer questions", "needs-human-feedback": "needs feedback", "awaiting-merge": "merge the PR" };
-const RUNNING = { spec: "planner", build: "builder", gate: "checks", review: "reviewer", merging: "merging" };
+const RUNNING = { spec: "planner", build: "builder", gate: "checks", review: "reviewer", merging: "merging", syncing: "sync" };
 let data = null, selected = null, selectedFile = null;
 
 const el = (tag, attrs = {}, ...kids) => {

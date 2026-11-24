@@ -12,6 +12,8 @@ finish   factory/bin/job    low/medium risk -> merged by the factory; high risk 
 stuck    GATE 2 (you)       needs-human-feedback: waits for `/factory <your feedback>`
 ```
 
+`/factory sync` brings PRs that wait for your merge up to date with the base branch; on a conflict the builder resolves it and reports where it was, how it was resolved and why, and the factory never merges there. The resolution may touch only the conflicted files and must pass the checks, or the branch is left as it was.
+
 It runs inside your own Claude Code session (`/factory run`); no CI, no server. `/factory dashboard` serves a live status page.
 
 **[How it works](docs/how-it-works.md)**: the whole factory as a diagram, then one feature followed step by step from the issue to the merged PR. Po polsku, jako opowieść: **[Jak działa fabryka](docs/jak-dziala.md)**.
@@ -69,6 +71,6 @@ Requirements: git, a GitHub remote, `gh` logged in, Python 3.
 
 ## Developing the factory
 
-The repository's own files live in `files/` (copied as is) and `templates/` (copied when missing). `install.sh <project> [--force] [--ponytail]` is the installer the skill calls. Tests: `bash test/install-test.sh` (the installer) and `bash test/manual-mode-test.sh` (manual mode end to end, with a fake `gh`).
+The repository's own files live in `files/` (copied as is) and `templates/` (copied when missing). `install.sh <project> [--force] [--ponytail]` is the installer the skill calls. Tests: `bash test/install-test.sh` (the installer) and `bash test/manual-mode-test.sh` (manual mode end to end, with a fake `gh`) and `bash test/sync-test.sh` (sync with real git conflicts).
 
 The design follows the ideas in ZazenCodes' "Software Factory for Claude Code v2" and Matt Pocock's `software-factory` skill; the code is written from scratch.

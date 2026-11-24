@@ -148,3 +148,13 @@ Samo `/factory run` wznawia już rozpoczęte zadania i niczego nowego nie bierze
 **Druga zmiana: przycisk „merge” należy zawsze do Ciebie.** Planista dalej ocenia ryzyko, a recenzent dalej musi dać PASS. Ale na końcu bramkarz nie pyta już, czy fabryka może zmergować sama: odpowiedź brzmi zawsze „nie”. Każdy PR trafia do **AWAITING MERGE**, oznaczony jako gotowy do przejrzenia. W komentarzu jest ocena ryzyka i to, co warto sprawdzić. Mergujesz Ty albo odpisujesz `/factory <uwagi>`, a wtedy zadanie wraca do wykonawcy.
 
 Wszystko inne zostaje jak było: pytania zebrane naraz przed startem, osobny worktree dla każdego zadania, checki uruchamiane z Twojego checkoutu, rundy recenzji i dashboard.
+
+## Część 4. Synchronizacja: `/factory sync`
+
+Kiedy kilka PR-ów czeka na Ciebie, a Ty mergujesz jeden z nich, `main` idzie do przodu i pozostałe PR-y mogą mieć z nim konflikty. `/factory sync` (albo `/factory sync <zadanie>`) aktualizuje każdy czekający PR o najnowszy `main`. Samego PR-a nigdy nie merguje.
+
+- **Bez konfliktów:** git scala `main` sam. Fabryka puszcza checki, wypycha commit scalający i zostawia pod PR-em krótki komentarz.
+- **Z konfliktami:** wykonawca rozwiązuje je w worktree zadania. Przy każdym konflikcie sprawdza, co chciała zmiana na `main`, a co ten PR, i stara się zachować obie intencje. Potem pisze raport `sync-<n>.md`. Dla każdego konfliktu podaje w nim **gdzie** był (plik i miejsce), **co** zmieniła każda strona, **jak** go rozwiązał i **dlaczego** tak. Na końcu raportu jest lista „Sprawdź ręcznie”. Raport dostajesz w czacie i jako komentarz pod PR-em, razem z poleceniem `git show --remerge-diff <commit>`. Pokazuje ono co do linijki, co rozwiązanie zmieniło względem tego, co zrobiłby sam git.
+- **Bezpieczniki:** commit scalający może zmienić tylko pliki, które miały konflikt. Checki muszą przejść. Jeśli wykonawca musiałby zgadywać, bo strony chcą sprzecznych rzeczy, nie rozwiązuje konfliktu i pisze, co masz zdecydować. W każdym z tych trzech przypadków gałąź wraca do stanu sprzed synchronizacji, PR zostaje nietknięty, a zadanie czeka na Ciebie w NEEDS HUMAN FEEDBACK.
+
+Recenzent nie ogląda rozwiązania drugi raz. Twoją recenzją jest raport.

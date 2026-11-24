@@ -27,6 +27,7 @@ Read `use_labels` and `auto_merge` from `factory/config.json` once at the start 
 /factory run "<text>" one job from the user's own text, no issue (first line = title)
 /factory status       what is running and what waits on the user
 /factory dashboard    start the live dashboard and give the user its URL
+/factory sync [<job>]  bring waiting PRs up to date with the base branch, with a report on every conflict
 /factory concurrency [<n>]  show, or set, how many jobs run at once
 /factory <anything>   talk to the factory: answers, feedback, reject a job, a question, a new feature
 ```
@@ -151,6 +152,22 @@ Print `factory/bin/job status` and the waiting list from **/factory run** step 5
 
 Start the server in the background (Bash with `run_in_background`): `python3 factory/bin/dashboard`. Give the user the URL it prints (`http://localhost:<dashboard_port>`). It reads the job files live; it never changes anything.
 
+## /factory sync [<job>]
+
+Brings PRs that wait for the user's merge up to date with the base branch, so they can be merged without conflicts. With a job, that one; without, every `awaiting-merge` job and every `needs-human-feedback` job whose note starts with `merge failed` or `sync failed`, one at a time (after the user merges one PR, the others may conflict with it: run sync again). The factory never merges here.
+
+For each job run `factory/bin/job sync <id>`:
+
+- `already up to date` or `syncing -> awaiting-merge: synced` (git merged it without conflicts, the checks passed, it is pushed): report the line.
+- `CONFLICT <files>` and `report: <path>`: spawn `factory-builder` (model and effort from `job agent <id> builder`) named `sync-<id>`, with `<header> Sync with <base_branch>. Conflicted files: <files>. Report: <path>.` Its reply is the `SYNC:` line:
+  - `RESOLVED` -> `factory/bin/job sync <id> --done`. It checks that the merge commit changes only the conflicted files, runs the checks, pushes, and posts the report on the PR. If it stops the sync (other files changed, checks fail), the branch goes back to where it was, unchanged, and the job waits in `needs-human-feedback`.
+  - `UNRESOLVED` -> `factory/bin/job sync <id> --abort`: the branch stays as it was and the report goes on the PR.
+- A refusal: tell the user why.
+
+When every job is done, show the user each report in full (`Conflicts` and `Check by hand`): where the conflict was, how it was resolved and why. Never summarise a resolution away: this is what the user reads before merging. Then list what still waits on them.
+
+Resuming a job in `syncing`: if `git -C <worktree> rev-parse -q --verify MERGE_HEAD` succeeds, the conflicts are still open: spawn the builder as above; otherwise run `factory/bin/job sync <id> --done`.
+
 ## /factory concurrency [<n>]
 
 Run `factory/bin/job concurrency` (prints the current value) or `factory/bin/job concurrency <n>` (writes it to `config.json`; refuses anything but a whole number >= 1). Never edit `config.json` by hand for this. After raising it while a run is going, run `factory/bin/job queue` and start the lines that have become startable. Lowering it stops nothing that is already running; new jobs wait until the active count drops below it.
@@ -179,6 +196,6 @@ Anything else after `/factory` is the user talking. Work out what they mean; ask
 
 - Queue mode: only issues labelled `factory` run. Labels need triage or write access, so the label is the trust boundary. Manual mode: only what the user names in this session runs; the user is the trust boundary.
 - Issue text reaches agents only as data they read themselves, never inside a prompt.
-- Agents push only their own `factory/<id>` branch. Only `factory/bin/job finish` merges, through `gh pr merge`, and only with `auto_merge` on, below the configured risk, with checks configured. The factory never pushes to `main` and never deploys.
+- Agents push only their own `factory/<id>` branch. `factory/bin/job sync` pushes a merge commit of the base branch, never merges the PR. Only `factory/bin/job finish` merges, through `gh pr merge`, and only with `auto_merge` on, below the configured risk, with checks configured. The factory never pushes to `main` and never deploys.
 - One PR per issue; at most `max_rounds` rounds before gate 2.
 - You never answer a question on the user's behalf.
