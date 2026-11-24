@@ -81,6 +81,7 @@ pre { margin: 0; padding: 14px; background: var(--bg); border: 1px solid var(--l
   .cols2 { grid-template-columns: minmax(0, 1fr); }
   .stats { margin-left: 0; }
 }
+.shot { max-width: 100%; border: 1px solid #ddd; border-radius: 6px; }
 </style>
 </head>
 <body>
@@ -231,7 +232,10 @@ async function renderDetail() {
         el("div", { class: "files" }, files.map(p => el("button", { class: p === selectedFile ? "sel" : "",
           onclick: () => { selectedFile = p; renderDetail(); } }, p))),
         pre)));
-  if (selectedFile) {
+  if (selectedFile && selectedFile.endsWith(".png")) {
+    pre.replaceWith(el("img", { class: "shot", alt: selectedFile,
+      src: "/api/file?job=" + encodeURIComponent(job.id) + "&path=" + encodeURIComponent(selectedFile) }));
+  } else if (selectedFile) {
     try {
       const r = await fetch("/api/file?job=" + encodeURIComponent(job.id) + "&path=" + encodeURIComponent(selectedFile));
       pre.textContent = r.ok ? await r.text() : "Couldn't load " + selectedFile;

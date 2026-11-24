@@ -30,6 +30,10 @@
       "effort": "medium"
     }
   },
+  "screenshots": {
+    "start": "",
+    "url": ""
+  },
   "dashboard_port": 8765,
   "protected_paths": [
     "factory/checks.sh",

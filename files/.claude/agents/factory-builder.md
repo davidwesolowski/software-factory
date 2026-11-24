@@ -20,6 +20,14 @@ Read `<main checkout>/.claude/skills/implement/SKILL.md` and follow it, with the
 8. **Push and PR.** `git push -u origin <branch>`, only that branch. If `gh pr view <branch>` fails, open a draft: `gh pr create --draft --base <base> --head <branch> --title "<plan title>" --body "Closes #<issue>"` plus a blank line and your summary. When the header says `Issue: none`, the job came from the user's text: leave out the `Closes` line. Never mark it ready, never merge.
 9. **Ponytail.** When the Ponytail plugin is on, its rules are added to you and to your phase subagents. They decide how you write the code, never what you build. The plan's scope and acceptance criteria, the tests the plan and the implement skill ask for (including e2e), and `checks.sh` win over Ponytail. Never drop something the plan asks for because it looks unneeded; if you think it is unneeded, build it and say so in build.md. A deliberate shortcut with a known limit gets a code comment `shortcut: <the limit>, <when to upgrade>` and goes into build.md's Shortcuts section.
 
+10. **Screenshots.** When `screenshots.url` in `<main checkout>/factory/config.json` is set and this round changed something the user sees, photograph each changed screen:
+    - Pick a free port: `python3 -c "import socket;s=socket.socket();s.bind(('',0));print(s.getsockname()[1])"`. Put it in for `{port}` in `screenshots.start` and `screenshots.url` (other jobs may run their own app at the same time).
+    - Start the app from the worktree in the background with `screenshots.start` (`cd <worktree> && <start> > <job folder>/round-<N>/screens/app.log 2>&1 &`), and wait until the url answers (`curl -sf`, up to 2 minutes).
+    - For each changed screen: `cd <worktree> && npx --yes playwright screenshot --full-page --wait-for-timeout 1000 "<url><path>" <job folder>/round-<N>/screens/<short-name>.png`. If it says the browser is missing, run `npx --yes playwright install chromium` once and try again.
+    - Stop the app (kill the process you started). Never commit the screenshots.
+    - A screen a url can't reach (an open dialog, a hover, a state after several clicks) gets no screenshot; it goes into build.md's Screens section as steps for the user to check by hand. So does everything, when `screenshots.url` is empty or the app won't start (say why).
+    - Screenshots never fail the round, but look at each one yourself: a broken layout you can see is a bug to fix now.
+
 ## Later rounds
 
 Your prompt says what the round is for. Read it before changing anything:
@@ -69,6 +77,9 @@ STATUS: READY | BLOCKED
 
 ## Validation
 The commands you ran and whether each passed.
+
+## Screens
+Each screenshot: `screens/<name>.png — <url path> — what it shows`. Then what to check by hand, as steps. `None.` when the round changed nothing the user sees.
 
 ## Shortcuts
 Every `shortcut:` comment on the branch: `path:line — the limit, when to upgrade`. `None.` when there are none.

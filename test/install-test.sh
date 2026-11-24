@@ -30,4 +30,16 @@ if bash "$SRC/install.sh" "$T/q" 2>/dev/null; then fail "overwrote own skill"; f
 grep -qx own "$T/q/.claude/skills/implement/SKILL.md" || fail "own skill changed"
 [ ! -e "$T/q/factory" ] || fail "partial install after refusal"
 
+# --local: nothing the factory adds shows in git status, .gitignore untouched, and updates stay local.
+git init -q "$T/l"; (cd "$T/l" && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init)
+bash "$SRC/install.sh" "$T/l" --local --ponytail >/dev/null
+[ ! -e "$T/l/.gitignore" ] || fail "--local wrote .gitignore"
+[ -z "$(git -C "$T/l" status --porcelain)" ] || fail "--local install shows in git status: $(git -C "$T/l" status --porcelain)"
+grep -q PONYTAIL_SUBAGENT_MATCHER "$T/l/.claude/settings.local.json" || fail "--local ponytail not in settings.local.json"
+[ ! -e "$T/l/.claude/settings.json" ] || fail "--local wrote settings.json"
+echo note > "$T/l/CLAUDE.local.md"; mkdir -p "$T/l/.worktrees/x" "$T/l/factory/jobs/x"; touch "$T/l/.worktrees/x/f" "$T/l/factory/jobs/x/job.json"
+bash "$SRC/install.sh" "$T/l" >/dev/null
+[ -z "$(git -C "$T/l" status --porcelain)" ] || fail "update of a local install shows in git status"
+[ "$(grep -cxF "factory/" "$T/l/.git/info/exclude")" = 1 ] || fail "exclude duplicated"
+
 echo "install-test: OK"

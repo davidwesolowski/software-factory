@@ -158,3 +158,15 @@ Kiedy kilka PR-ów czeka na Ciebie, a Ty mergujesz jeden z nich, `main` idzie do
 - **Bezpieczniki:** commit scalający może zmienić tylko pliki, które miały konflikt. Checki muszą przejść. Jeśli wykonawca musiałby zgadywać, bo strony chcą sprzecznych rzeczy, nie rozwiązuje konfliktu i pisze, co masz zdecydować. W każdym z tych trzech przypadków gałąź wraca do stanu sprzed synchronizacji, PR zostaje nietknięty, a zadanie czeka na Ciebie w NEEDS HUMAN FEEDBACK.
 
 Recenzent nie ogląda rozwiązania drugi raz. Twoją recenzją jest raport.
+
+## Część 5. Zrzuty ekranu
+
+Recenzent czyta kod, ale nie widzi aplikacji. Dlatego w aplikacji webowej możesz ustawić w `config.json` dwie rzeczy: `screenshots.start`, czyli komendę uruchamiającą serwer deweloperski z `{port}`, oraz `screenshots.url`. Wtedy wykonawca po każdej rundzie, która zmieniła coś widocznego, robi tak:
+
+1. Uruchamia aplikację na wolnym porcie. Na tym samym porcie mogą w tej chwili pracować inne zadania.
+2. Każdy zmieniony ekran fotografuje komendą `npx playwright screenshot` i zapisuje w `round-N/screens/`.
+3. Sam ogląda każdy zrzut. Gdy widzi rozjechany układ, poprawia go od razu.
+
+Recenzent otwiera te same obrazki i porównuje je z planem. Nachodzące na siebie elementy albo ucięty tekst to dla niego twarde uwagi. Zrzuty zobaczysz też na dashboardzie.
+
+Stanów, do których nie prowadzi sam adres, wykonawca nie sfotografuje. Chodzi na przykład o otwarte okno dialogowe albo ekran po kilku kliknięciach. Takie miejsca wpisuje w `build.md` jako kroki do ręcznego sprawdzenia. Robi tak samo, gdy zrzuty nie są ustawione, na przykład w aplikacji desktopowej.

@@ -59,6 +59,10 @@ Do the same three steps yourself. Then, in any project, `/install-factory` insta
 | `.gitignore`: `factory/jobs/`, `.worktrees/` | | appended if missing |
 | `.claude/settings.json`: Ponytail, pinned (optional) | | merged |
 
+**Only on this machine:** `/install-factory` asks whether the factory goes into the repo or stays local. Local (`install.sh --local`) puts every factory path into `.git/info/exclude`, git's own ignore list that is never committed, so `git status` never shows it and `.gitignore` is untouched; Ponytail goes into `.claude/settings.local.json` and the CLAUDE.md section into `CLAUDE.local.md`.
+
+**Screenshots:** with `screenshots.start` and `screenshots.url` set in `config.json` (a web app), the builder photographs every screen a round changed with `npx playwright screenshot`, the reviewer checks the pictures, and the dashboard shows them. Without them, the builder lists what to check by hand.
+
 The first install refuses to overwrite a project's own file with the same path (for example its own `implement` skill) unless the user agrees (`--force`).
 
 Requirements: git, a GitHub remote, `gh` logged in, Python 3.

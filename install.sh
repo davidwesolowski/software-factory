@@ -1,30 +1,36 @@
 #!/usr/bin/env bash
 # Install or update the software factory in a project.
 #
-#   install.sh <project> [--force] [--ponytail]
+#   install.sh <project> [--force] [--ponytail] [--local]
 #
 # files/      the factory's own files; copied over the project on every install and update
 # templates/  the project's own files (config.json, checks.sh, risk.md); copied only when missing.
 #             On update, top-level keys new in templates/config.json are added to the project's.
 # --force     first install only: overwrite project files that are in the way (e.g. an own plan-feature skill)
 # --ponytail  add the Ponytail plugin to .claude/settings.json, pinned to PONYTAIL_REF
+# --local     keep the factory out of git: its paths go to .git/info/exclude (never committed) instead of
+#             .gitignore, and Ponytail to .claude/settings.local.json. Updates stay local once installed so.
 set -euo pipefail
 
 PONYTAIL_REF=7801d061243d7b753bad0e0b3c057cd250b11755 # v5.3.3
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
-PROJECT="" FORCE=0 PONYTAIL=0
+PROJECT="" FORCE=0 PONYTAIL=0 LOCAL=0
 for a in "$@"; do
   case "$a" in
     --force) FORCE=1 ;;
     --ponytail) PONYTAIL=1 ;;
+    --local) LOCAL=1 ;;
     -*) echo "unknown option $a" >&2; exit 64 ;;
     *) PROJECT="$a" ;;
   esac
 done
-[ -n "$PROJECT" ] || { echo "usage: install.sh <project> [--force] [--ponytail]" >&2; exit 64; }
+[ -n "$PROJECT" ] || { echo "usage: install.sh <project> [--force] [--ponytail] [--local]" >&2; exit 64; }
 PROJECT="$(cd "$PROJECT" && git rev-parse --show-toplevel)" || { echo "$PROJECT is not a git repository" >&2; exit 1; }
 [ "$PROJECT" != "$SRC" ] || { echo "refusing to install the factory into its own repo" >&2; exit 1; }
+EXCLUDE="$(git -C "$PROJECT" rev-parse --path-format=absolute --git-common-dir)/info/exclude"
+LOCAL_MARK="# software factory (local install)"
+grep -qxF "$LOCAL_MARK" "$EXCLUDE" 2>/dev/null && LOCAL=1
 
 cd "$SRC/files"
 FILES=$(find . -type f | sed 's|^\./||' | sort)
@@ -62,14 +68,24 @@ if added:
     print("config.json: added " + ", ".join(added))
 EOF
 
-touch "$PROJECT/.gitignore"
-for line in "factory/jobs/" ".worktrees/"; do
-  grep -qxF "$line" "$PROJECT/.gitignore" || printf '%s\n' "$line" >> "$PROJECT/.gitignore"
+if [ "$LOCAL" = 1 ]; then
+  # Everything the factory adds, so `git status` never shows it. Applies to untracked files only.
+  IGNORE="$EXCLUDE" SETTINGS=.claude/settings.local.json
+  lines="factory/ .worktrees/ CLAUDE.local.md $SETTINGS"
+  lines="$lines $(printf '%s\n' $FILES | sed -n 's|^\(\.claude/skills/[^/]*/\).*|\1|p; s|^\(\.claude/agents/.*\)|\1|p' | sort -u | tr '\n' ' ')"
+else
+  IGNORE="$PROJECT/.gitignore" SETTINGS=.claude/settings.json
+  lines="factory/jobs/ .worktrees/"
+fi
+mkdir -p "$(dirname "$IGNORE")" && touch "$IGNORE"
+[ "$LOCAL" = 0 ] || grep -qxF "$LOCAL_MARK" "$IGNORE" || printf '%s\n' "$LOCAL_MARK" >> "$IGNORE"
+for line in $lines; do
+  grep -qxF "$line" "$IGNORE" || printf '%s\n' "$line" >> "$IGNORE"
 done
 
 if [ "$PONYTAIL" = 1 ]; then
   mkdir -p "$PROJECT/.claude"
-  python3 - "$PROJECT/.claude/settings.json" "$PONYTAIL_REF" <<'EOF'
+  python3 - "$PROJECT/$SETTINGS" "$PONYTAIL_REF" <<'EOF'
 import json, os, sys
 path, ref = sys.argv[1:3]
 s = json.load(open(path)) if os.path.exists(path) else {}
