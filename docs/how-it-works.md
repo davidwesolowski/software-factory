@@ -1,6 +1,6 @@
 # How the factory works
 
-Two diagrams: first the factory as a whole, then one feature followed from the issue to the merged pull request.
+Two diagrams: first the factory as a whole, then one feature followed from the issue to the merged pull request. Both are told as a story, in Polish, in [jak-dziala.md](jak-dziala.md).
 
 ## Words used below
 
