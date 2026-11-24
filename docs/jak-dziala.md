@@ -2,6 +2,8 @@
 
 Ten tekst opowiada słowami dwa diagramy z [how-it-works.md](how-it-works.md): najpierw całą fabrykę, potem jedno zadanie prześledzone od issue do zmergowanego PR. Najlepiej czytać go z diagramami otwartymi obok.
 
+Opowieść opisuje **tryb kolejki**. W **trybie ręcznym** (`"use_labels": false`, `"auto_merge": false`) zmieniają się tylko dwie rzeczy, opisane na końcu w części 3.
+
 ## Część 1. Cała fabryka
 
 Wyobraź sobie małą manufakturę, która pracuje u Ciebie na komputerze. Ma trzech pracowników: **planistę**, **wykonawcę** i **recenzenta**. Ma kierownika zmiany, czyli Twoją sesję Claude Code po wpisaniu `/factory run`. Kierownik sam niczego nie produkuje: rozdziela pracę, pilnuje kolejności i odpowiada za kontakt z Tobą. Jest jeszcze **bramkarz**, czyli skrypt `factory/bin/job`. Ma przy sobie regulamin i nie przepuści nikogo dalej bez kompletu papierów.
@@ -131,3 +133,18 @@ Wpisałeś jedno issue i kliknąłeś dwie odpowiedzi. Resztę zrobiła fabryka.
 - **Projekt nie ma jeszcze skonfigurowanych checków** (`checks_configured: false`). Fabryka niczego nie merguje sama, niezależnie od ryzyka: każdy PR czeka na Ciebie.
 
 Wszystko to można śledzić na żywo przez `/factory dashboard` albo zapytać `/factory status`.
+
+## Część 3. Tryb ręczny
+
+Tryb ręczny to ta sama manufaktura z dwiema zmianami w regulaminie. Jest dla sytuacji, w których nie możesz albo nie chcesz przyklejać etykiet w repozytorium, na przykład w pracy, i dla tych, w których każdą zmianę chcesz wpuścić do projektu własnoręcznie.
+
+**Pierwsza zmiana: nie ma skrzynki na zamówienia.** Fabryka nie przegląda GitHuba w poszukiwaniu kartek z etykietą `factory`. Zadanie zaczyna się tylko wtedy, gdy je wskażesz:
+
+- `/factory run 123` bierze dowolne otwarte issue nr 123, bez żadnej etykiety;
+- `/factory run "Dodaj eksport do CSV"` bierze Twój własny tekst, bez issue. Zadanie dostaje nazwę `t01-dodaj-eksport-do-csv`, Twoje odpowiedzi i notatki zostają w jego teczce, a PR nie ma dopisku „Closes”, bo nie ma czego zamykać.
+
+Samo `/factory run` wznawia już rozpoczęte zadania i niczego nowego nie bierze. Fabryka nie tworzy i nie przykleja żadnej etykiety. Gdy zadanie utknie, dowiesz się o tym od kierownika, z `/factory status` albo z dashboardu, a jeśli zadanie ma już PR, także z komentarza pod nim.
+
+**Druga zmiana: przycisk „merge” należy zawsze do Ciebie.** Planista dalej ocenia ryzyko, a recenzent dalej musi dać PASS. Ale na końcu bramkarz nie pyta już, czy fabryka może zmergować sama: odpowiedź brzmi zawsze „nie”. Każdy PR trafia do **AWAITING MERGE**, oznaczony jako gotowy do przejrzenia. W komentarzu jest ocena ryzyka i to, co warto sprawdzić. Mergujesz Ty albo odpisujesz `/factory <uwagi>`, a wtedy zadanie wraca do wykonawcy.
+
+Wszystko inne zostaje jak było: pytania zebrane naraz przed startem, osobny worktree dla każdego zadania, checki uruchamiane z Twojego checkoutu, rundy recenzji i dashboard.

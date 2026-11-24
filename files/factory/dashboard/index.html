@@ -140,7 +140,7 @@ function card(job) {
   if (job.stage === "merged" || job.stage === "rejected") tags.push(el("span", { class: "tag" }, job.stage));
   tags.push(el("span", { class: "tag", title: "time in this stage" }, ago(lastMove(job))));
   return el("button", { class: "card" + (selected === job.id ? " sel" : ""), onclick: () => select(job.id) },
-    el("div", { class: "num" }, "#" + job.issue + (job.pr ? " · PR #" + job.pr : "")),
+    el("div", { class: "num" }, (job.issue ? "#" + job.issue : "text") + (job.pr ? " · PR #" + job.pr : "")),
     el("div", { class: "title" }, job.title),
     el("div", { class: "tags" }, tags),
     job.note ? el("div", { class: "note" }, job.note) : null);
@@ -215,12 +215,12 @@ async function renderDetail() {
       el("div", { class: "when" }, new Date(h.at).toLocaleString()))));
   const pre = el("pre", {}, selectedFile ? "Loading…" : "No files yet.");
   box.replaceChildren(
-    el("h3", {}, "#" + job.issue + " " + job.title),
+    el("h3", {}, (job.issue ? "#" + job.issue + " " : "") + job.title),
     el("div", { class: "meta" },
       el("span", {}, "Stage: ", el("b", {}, job.stage)),
       job.risk ? el("span", {}, "Risk: " + job.risk) : null,
       el("span", {}, "Round " + job.round + " of " + job.round_limit),
-      el("a", { href: job.issue_url, target: "_blank", rel: "noopener" }, "Issue"),
+      job.issue_url ? el("a", { href: job.issue_url, target: "_blank", rel: "noopener" }, "Issue") : null,
       job.pr_url ? el("a", { href: job.pr_url, target: "_blank", rel: "noopener" }, "PR #" + job.pr) : null,
       el("span", { class: "muted" }, "Branch " + job.branch)),
     job.risk_why ? el("div", { class: "risk-why" }, el("b", {}, "Why " + job.risk + " risk"),

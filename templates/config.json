@@ -3,6 +3,8 @@
   "concurrency": 3,
   "max_rounds": 3,
   "merge_method": "merge",
+  "auto_merge": true,
+  "use_labels": true,
   "labels": {
     "queue": "factory",
     "needs_feedback": "factory:needs-human-feedback",

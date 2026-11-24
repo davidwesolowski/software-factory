@@ -14,6 +14,8 @@ Two diagrams: first the factory as a whole, then one feature followed from the i
 - **Round**: one pass of build → gate → review. A job gets at most `max_rounds` (default 3) before it stops and asks you.
 - **Agent**: a Claude subagent with one job: the **planner**, the **builder** or the **reviewer**. The **orchestrator** is your own Claude Code session after you type `/factory run`; it starts the agents and runs the scripts, but writes no code itself.
 
+The diagrams show **queue mode**. In **manual mode** (`"use_labels": false`, `"auto_merge": false`) two things change: a job starts only when you name it (`/factory run 123` or `/factory run "<what to build>"`), and FINISH always goes to AWAITING MERGE: you merge every PR. No label is ever created or set. Everything else is the same.
+
 ## 1. The whole factory
 
 ```mermaid

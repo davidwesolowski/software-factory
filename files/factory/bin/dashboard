@@ -49,6 +49,11 @@ def open_blockers(number):
 def refresh_queue():
     while True:
         try:
+            if not config().get("use_labels", True):  # manual mode: no label queue to show
+                with _lock:
+                    _queue.update(issues=[], error=None, at=time.time())
+                time.sleep(30)
+                continue
             label = config()["labels"]["queue"]
             out = subprocess.run(
                 ["gh", "issue", "list", "--label", label, "--state", "open", "--limit", "100",

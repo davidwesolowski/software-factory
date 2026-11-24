@@ -38,8 +38,12 @@ On **update**, show what changed since the installed version: `git -C "$src" log
 
 Ask in one call:
 
-1. **Ponytail** (a plugin for the smallest change that works; it gives the reviewer its Simplicity axis): add it to `.claude/settings.json`, pinned. Recommended: yes. Skip this question if `.claude/settings.json` already enables `ponytail@ponytail`.
-2. **Base branch**: what PRs target and the factory merges into. Recommended: the remote default (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`).
+1. **Mode**:
+   - **Manual** (recommended when the user can't or doesn't want to add labels to the repo, or wants to merge every PR): no label queue and no labels ever touched; jobs start with `/factory run <issue>` or `/factory run "<text>"`; the factory never merges, every PR waits for the user.
+   - **Queue**: issues labelled `factory` are picked up by `/factory run`, the factory creates three labels, and PRs up to `auto_merge_max_risk` are merged by the factory.
+   - Recommend manual unless the user said they want the label queue or auto-merge.
+2. **Ponytail** (a plugin for the smallest change that works; it gives the reviewer its Simplicity axis): add it to `.claude/settings.json`, pinned. Recommended: yes. Skip this question if `.claude/settings.json` already enables `ponytail@ponytail`.
+3. **Base branch**: what PRs target and the factory merges into. Recommended: the remote default (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`).
 
 ## 4. Run the installer
 
@@ -55,13 +59,23 @@ On **update**, the installer replaced only the factory's own files and kept `con
 
 Edit only these files, under `<project>/factory/`:
 
-- **`config.json`**: set `base_branch` to the answer from step 3. Set `context_files` to the files that hold the project's domain knowledge and that exist (a glossary, `docs/adr/`, `CONTRIBUTING.md`, a spec folder); `[]` if none.
-- **`checks.sh`**: find the project's real checks (package.json scripts and lockfile, Makefile, pyproject/tox, Cargo, go.mod, CI workflows in `.github/workflows/`). Propose them to the user as the list of commands the gate will run: a clean install from the lockfile, typecheck, lint, tests, build, e2e if present. Keep the final "working tree unchanged" step. After the user confirms, write them as `step "<name>"` lines and run `bash factory/checks.sh` once. If it passes, ask whether to set `"checks_configured": true` (without it nothing ever auto-merges). If it fails, show the failure and leave `checks_configured` false.
+- **`config.json`**: set `base_branch` to the answer from step 3. For manual mode set `"use_labels": false` and `"auto_merge": false`; for queue mode leave both `true`. Set `context_files` to the files that hold the project's domain knowledge and that exist (a glossary, `docs/adr/`, `CONTRIBUTING.md`, a spec folder); `[]` if none.
+- **`checks.sh`**: find the project's real checks (package.json scripts and lockfile, Makefile, pyproject/tox, Cargo, go.mod, CI workflows in `.github/workflows/`). Propose them to the user as the list of commands the gate will run: a clean install from the lockfile, typecheck, lint, tests, build, e2e if present. Keep the final "working tree unchanged" step. After the user confirms, write them as `step "<name>"` lines and run `bash factory/checks.sh` once. If it passes, ask whether to set `"checks_configured": true` (without it the gate's PASS carries a warning, and nothing ever auto-merges). If it fails, show the failure and leave `checks_configured` false.
 - **`risk.md`**: read the code enough to draft the "High in this project" list: what in this project is hard to undo or easy to get subtly wrong (the user's files, money, the public API, output formats, hardware). Show the draft and write it after the user agrees or corrects it.
 
 ## 6. Document it in CLAUDE.md (install only)
 
-If `<project>/CLAUDE.md` has no `## Software factory` section, append:
+If `<project>/CLAUDE.md` has no `## Software factory` section, append the one for the chosen mode.
+
+Manual mode:
+
+```markdown
+## Software factory
+
+`/factory run <issue>` or `/factory run "<what to build>"` runs the local software factory on one job: spec (the planner asks all its questions at once, gate 1) → build in its own worktree → checks → review → a PR that you merge; the factory never merges and never touches labels. A stuck job waits for `/factory <your feedback>` (gate 2). `/factory run` resumes unfinished jobs, `/factory status` lists them, `/factory dashboard` serves a live status page. Configuration is in `factory/config.json`, the checks in `factory/checks.sh`, the risk rubric in `factory/risk.md`, runtime state in `factory/jobs/` (gitignored), the agents in `.claude/agents/factory-*.md`. Update the factory with `/install-factory`; it never overwrites `config.json`, `checks.sh` or `risk.md`.
+```
+
+Queue mode:
 
 ```markdown
 ## Software factory
