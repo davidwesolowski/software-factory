@@ -1,0 +1,52 @@
+{
+  "base_branch": "main",
+  "concurrency": 3,
+  "max_rounds": 3,
+  "merge_method": "merge",
+  "auto_merge": true,
+  "use_labels": true,
+  "labels": {
+    "queue": "factory",
+    "needs_feedback": "factory:needs-human-feedback",
+    "awaiting_merge": "factory:awaiting-merge"
+  },
+  "checks_configured": false,
+  "auto_merge_max_risk": "medium",
+  "steps": {
+    "planner_spec": {
+      "model": "anthropic/claude-opus-5-5",
+      "effort": "high"
+    },
+    "planner_revise": {
+      "model": "anthropic/claude-opus-5-5",
+      "effort": "medium"
+    },
+    "builder": {
+      "model": "anthropic/claude-sonnet-5-5",
+      "effort": "high"
+    },
+    "reviewer": {
+      "model": "anthropic/claude-opus-5-5",
+      "effort": "medium"
+    }
+  },
+  "screenshots": {
+    "start": "",
+    "url": ""
+  },
+  "dashboard_port": 8765,
+  "protected_paths": [
+    "factory/checks.sh",
+    "factory/config.json",
+    "factory/risk.md",
+    "factory/bin/*",
+    "factory/dashboard/*",
+    "opencode.json",
+    ".opencode/*",
+    ".agents/*"
+  ],
+  "context_files": [
+    "GLOSSARY.md",
+    "docs/adr/"
+  ]
+}
