@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""The deterministic gate: does a job's branch pass the project's checks?
+
+Usage:
+  gate <job>            write round-N/checks.md (first line GATE: PASS or GATE: FAIL); exit 0 / 1
+  gate <job> --merge    same, written as round-N/merge-checks.md (job merge runs this)
+
+It runs the MAIN checkout's factory/checks.sh inside the job's worktree, so a
+branch can't change the checks it is judged by, and it fails any branch that
+modifies or deletes a file matching config.json `protected_paths`.
+"""
+
+import fnmatch
+import json
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+FACTORY = REPO / "factory"
+CONFIG = json.loads((FACTORY / "config.json").read_text())
+TAIL = 80
+
+
+def die(msg):
+    print("gate: %s" % msg, file=sys.stderr)
+    sys.exit(2)
+
+
+def find_job(ref):
+    jobs = FACTORY / "jobs"
+    for d in sorted(jobs.iterdir()) if jobs.exists() else []:
+        if not (d / "job.json").exists():
+            continue
+        job = json.loads((d / "job.json").read_text())
+        if d.name == ref or (ref.isdigit() and job["issue"] == int(ref)):
+            return d, job
+    die("no job %s" % ref)
+
+
+def main(argv):
+    if not argv:
+        die("usage: gate <job> [--merge]")
+    d, job = find_job(argv[0])
+    merge = "--merge" in argv[1:]
+    wt = Path(job["worktree"])
+    if not wt.exists():
+        die("worktree %s does not exist" % wt)
+    rd = d / ("round-%d" % job["round"])
+    rd.mkdir(exist_ok=True)
+    out = rd / ("merge-checks.md" if merge else "checks.md")
+    log = rd / ("merge-checks.log" if merge else "checks.log")
+
+    problems = []
+
+    base = "origin/" + CONFIG["base_branch"]
+    subprocess.run(["git", "fetch", "origin", CONFIG["base_branch"]], cwd=str(wt), capture_output=True)
+    mb = subprocess.run(["git", "merge-base", base, "HEAD"], cwd=str(wt), capture_output=True, text=True)
+    if mb.returncode != 0:
+        die("no merge-base with %s" % base)
+    diff = subprocess.run(["git", "diff", "--name-status", mb.stdout.strip(), "HEAD"],
+                          cwd=str(wt), capture_output=True, text=True).stdout
+    for line in diff.splitlines():
+        parts = line.split("\t")
+        status, path = parts[0], parts[-1]
+        if status.startswith("A"):
+            continue
+        for pattern in CONFIG["protected_paths"]:
+            if fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(parts[1] if len(parts) > 1 else path, pattern):
+                problems.append("protected file changed: %s (%s)" % (path, status))
+
+    started = time.time()
+    res = subprocess.run(["bash", str(FACTORY / "checks.sh")], cwd=str(wt),
+                         capture_output=True, text=True)
+    seconds = time.time() - started
+    output = (res.stdout or "") + (res.stderr or "")
+    log.write_text(output)
+    if res.returncode != 0:
+        problems.append("factory/checks.sh exited %d" % res.returncode)
+
+    verdict = "GATE: FAIL" if problems else "GATE: PASS"
+    lines = [verdict, "", "## Summary"]
+    if problems:
+        lines += ["- " + p for p in problems]
+    else:
+        lines.append("- factory/checks.sh passed in %.0fs" % seconds)
+    if not CONFIG.get("checks_configured"):
+        lines.append("- WARNING: no project checks are configured yet; this PASS proves nothing about the code")
+    lines += ["", "## Output (last %d lines, full log in %s)" % (TAIL, log.name), "", "```"]
+    lines += output.splitlines()[-TAIL:]
+    lines += ["```", ""]
+    out.write_text("\n".join(lines))
+    print(verdict)
+    sys.exit(1 if problems else 0)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

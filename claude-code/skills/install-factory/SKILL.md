@@ -32,7 +32,7 @@ git -C "$src" checkout --quiet "${ref:-main}"   # ref: the skill's argument, if 
 
 The repo is private: if the clone fails with a permission error, tell the user their `gh` account needs access to it.
 
-On **update**, show what changed since the installed version: `git -C "$src" log --oneline "$(cat factory/VERSION)..HEAD"`. If it prints nothing, say the factory is up to date and stop.
+On **update**, show what changed since the installed version: `git -C "$src" log --oneline "$(cat factory/VERSION)..HEAD" -- claude-code/`. If it prints nothing, say the factory is up to date and stop.
 
 ## 3. Decide with the user (install only)
 
@@ -51,7 +51,7 @@ Ask in one call:
 ## 4. Run the installer
 
 ```bash
-bash "$src/install.sh" <project> [--ponytail] [--local]
+bash "$src/claude-code/install.sh" <project> [--ponytail] [--local]
 ```
 
 If it exits 2, it lists project files that differ from the factory's (for example the project's own `implement` skill). Show the list and ask: overwrite them (`--force`; the factory's agents depend on its own versions) or stop. Never pass `--force` without that answer.
