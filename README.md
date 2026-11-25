@@ -5,7 +5,7 @@ A local software factory: it turns GitHub issues into merged pull requests, with
 | Folder | For | Install |
 | --- | --- | --- |
 | [`claude-code/`](claude-code/README.md) | Claude Code | the `install-factory` skill in `~/.claude/skills/`, then `/install-factory` |
-| [`opencode/`](opencode/README.md) | OpenCode 2 | the `install-opencode-factory` skill and the `install-factory` command in `~/.config/opencode/`, then `/install-factory` |
+| [`opencode/`](opencode/README.md) | OpenCode 2 | the `install-opencode-factory` skill and command in `~/.config/opencode/`, then `/install-opencode-factory` |
 
 The two folders are independent: each has its own installer, scripts, agents, skills and tests. A fix in `factory/bin/` or in a skill that both need goes into both.
 

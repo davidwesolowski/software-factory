@@ -20,7 +20,7 @@ It runs inside your own OpenCode session (`/factory run`); no CI, no server. `/f
 
 ## Two modes
 
-`/install-factory` asks which one; switch later in `factory/config.json`.
+`/install-opencode-factory` asks which one; switch later in `factory/config.json`.
 
 | | Queue mode | Manual mode |
 | --- | --- | --- |
@@ -35,15 +35,15 @@ Planning with questions up front, building in a worktree, the checks, the review
 
 ### For an agent
 
-When a user gives you this repository's link and asks you to install it, install the `install-factory` skill for them, then run it:
+When a user gives you this repository's link and asks you to install it, install the `install-opencode-factory` skill and command for them, then run it:
 
 1. `gh repo clone davidwesolowski/software-factory "$(mktemp -d)/sf"` (the repo is private: this needs a `gh` login with access).
-2. Copy `opencode/skills/install-opencode-factory/` from the clone to `~/.config/opencode/skills/install-opencode-factory/`, and `opencode/commands/install-factory.md` to `~/.config/opencode/commands/install-factory.md` (ask first if either exists; it may be an older copy you are replacing).
-3. Tell the user to type `/install-factory` in the project where they want the factory. New commands and skills load in a new session, so the user may need to start one.
+2. Copy `opencode/skills/install-opencode-factory/` from the clone to `~/.config/opencode/skills/install-opencode-factory/`, and `opencode/commands/install-opencode-factory.md` to `~/.config/opencode/commands/install-opencode-factory.md` (ask first if either exists; it may be an older copy you are replacing).
+3. Tell the user to type `/install-opencode-factory` in the project where they want the factory. New commands and skills load in a new session, so the user may need to start one.
 
 ### By hand
 
-Do the same three steps yourself. Then, in any project, `/install-factory` installs the factory, and later updates it (`/install-factory <ref>` for a specific tag or commit).
+Do the same three steps yourself. Then, in any project, `/install-opencode-factory` installs the factory, and later updates it (`/install-opencode-factory <ref>` for a specific tag or commit).
 
 ## What gets installed
 
@@ -60,7 +60,7 @@ Do the same three steps yourself. Then, in any project, `/install-factory` insta
 | `.gitignore`: `factory/jobs/`, `.worktrees/` | | appended if missing |
 | `.opencode/opencode.json`: `experimental.subagent_depth: 3`, Ponytail pinned (optional) | | merged |
 
-**Only on this machine:** `/install-factory` asks whether the factory goes into the repo or stays local. Local (`install.sh --local`) puts every factory path into `.git/info/exclude`, git's own ignore list that is never committed, so `git status` never shows it and `.gitignore` is untouched; `.opencode/opencode.json` is excluded too, and the factory section goes into `.opencode/factory.md`, which that config loads through `instructions`.
+**Only on this machine:** `/install-opencode-factory` asks whether the factory goes into the repo or stays local. Local (`install.sh --local`) puts every factory path into `.git/info/exclude`, git's own ignore list that is never committed, so `git status` never shows it and `.gitignore` is untouched; `.opencode/opencode.json` is excluded too, and the factory section goes into `.opencode/factory.md`, which that config loads through `instructions`.
 
 **Screenshots:** with `screenshots.start` and `screenshots.url` set in `config.json` (a web app), the builder photographs every screen a round changed with `npx playwright screenshot`, the reviewer checks the pictures, and the dashboard shows them. Without them, the builder lists what to check by hand.
 

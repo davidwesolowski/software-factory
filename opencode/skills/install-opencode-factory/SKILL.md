@@ -1,6 +1,6 @@
 ---
 name: install-opencode-factory
-description: Install or update the local software factory for OpenCode (/factory run: GitHub issues labelled `factory` → plan → build → checks → review → merged PR) in the current git repository, from github.com/davidwesolowski/software-factory. Use when the user types /install-factory in OpenCode, or asks to install, set up or update the software factory in a project.
+description: Install or update the local software factory for OpenCode (/factory run: GitHub issues labelled `factory` → plan → build → checks → review → merged PR) in the current git repository, from github.com/davidwesolowski/software-factory. Use when the user types /install-opencode-factory, or asks to install, set up or update the software factory in a project.
 disable-model-invocation: true
 argument-hint: "[git ref, default main]"
 ---
@@ -80,7 +80,7 @@ Manual mode:
 ```markdown
 ## Software factory
 
-`/factory run <issue>` or `/factory run "<what to build>"` runs the local software factory on one job: spec (the planner asks all its questions at once, gate 1) → build in its own worktree → checks → review → a PR that you merge; the factory never merges and never touches labels. A stuck job waits for `/factory <your feedback>` (gate 2). `/factory run` resumes unfinished jobs, `/factory status` lists them, `/factory dashboard` serves a live status page. Configuration is in `factory/config.json`, the checks in `factory/checks.sh`, the risk rubric in `factory/risk.md`, runtime state in `factory/jobs/` (gitignored), the agents in `.opencode/agents/factory-*.md`. Update the factory with `/install-factory`; it never overwrites `config.json`, `checks.sh` or `risk.md`.
+`/factory run <issue>` or `/factory run "<what to build>"` runs the local software factory on one job: spec (the planner asks all its questions at once, gate 1) → build in its own worktree → checks → review → a PR that you merge; the factory never merges and never touches labels. A stuck job waits for `/factory <your feedback>` (gate 2). `/factory run` resumes unfinished jobs, `/factory status` lists them, `/factory dashboard` serves a live status page. Configuration is in `factory/config.json`, the checks in `factory/checks.sh`, the risk rubric in `factory/risk.md`, runtime state in `factory/jobs/` (gitignored), the agents in `.opencode/agents/factory-*.md`. Update the factory with `/install-opencode-factory`; it never overwrites `config.json`, `checks.sh` or `risk.md`.
 ```
 
 Queue mode:
@@ -88,7 +88,7 @@ Queue mode:
 ```markdown
 ## Software factory
 
-`/factory run` runs the local software factory on issues labelled `factory`: spec (the planner asks all its questions at once, gate 1) → build → checks → review → merged by the factory (low/medium risk) or handed to you (high risk). A stuck job is labelled `factory:needs-human-feedback` and waits (gate 2). `/factory dashboard` serves a live status page. Configuration is in `factory/config.json`, the checks in `factory/checks.sh`, the risk rubric in `factory/risk.md`, runtime state in `factory/jobs/` (gitignored), the agents in `.opencode/agents/factory-*.md`. Update the factory with `/install-factory`; it never overwrites `config.json`, `checks.sh` or `risk.md`.
+`/factory run` runs the local software factory on issues labelled `factory`: spec (the planner asks all its questions at once, gate 1) → build → checks → review → merged by the factory (low/medium risk) or handed to you (high risk). A stuck job is labelled `factory:needs-human-feedback` and waits (gate 2). `/factory dashboard` serves a live status page. Configuration is in `factory/config.json`, the checks in `factory/checks.sh`, the risk rubric in `factory/risk.md`, runtime state in `factory/jobs/` (gitignored), the agents in `.opencode/agents/factory-*.md`. Update the factory with `/install-opencode-factory`; it never overwrites `config.json`, `checks.sh` or `risk.md`.
 ```
 
 If Ponytail was added, append to that section that it is pinned in `.opencode/opencode.json` (`plugins`) and OpenCode installs it from npm on its next start; nobody has to run anything.
